@@ -1,0 +1,56 @@
+@import "tailwindcss";
+
+@layer base {
+  :root {
+    --rose-pink: #D85C83;
+    --deep-pink: #BE3D69;
+    --soft-blush: #FCE8EE;
+    --ivory: #FFFDF8;
+    --champagne-gold: #C49A52;
+    --dark-text: #30252A;
+    --muted-text: #796B70;
+    --background: #FFFDF8;
+    --foreground: #30252A;
+  }
+}
+
+@theme {
+  --color-rose-pink: #D85C83;
+  --color-deep-pink: #BE3D69;
+  --color-soft-blush: #FCE8EE;
+  --color-ivory: #FFFDF8;
+  --color-champagne-gold: #C49A52;
+  --color-dark-text: #30252A;
+  --color-muted-text: #796B70;
+}
+
+body {
+  background-color: var(--background);
+  color: var(--foreground);
+  font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif;
+  overflow-x: hidden;
+}
+
+/* Custom scrollbar */
+::-webkit-scrollbar {
+  width: 8px;
+  height: 8px;
+}
+::-webkit-scrollbar-track {
+  background: #FCE8EE;
+}
+::-webkit-scrollbar-thumb {
+  background: #D85C83;
+  border-radius: 4px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: #BE3D69;
+}
+
+/* Luxury card shadow */
+.shadow-luxury {
+  box-shadow: 0 4px 20px -2px rgba(216, 92, 131, 0.08), 0 2px 6px -1px rgba(190, 61, 105, 0.04);
+}
+.shadow-luxury-hover {
+  box-shadow: 0 10px 25px -3px rgba(216, 92, 131, 0.15), 0 4px 10px -2px rgba(190, 61, 105, 0.08);
+}
