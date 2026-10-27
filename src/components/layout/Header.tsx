@@ -216,6 +216,16 @@ export function Header() {
               </span>
             </button>
 
+            {/* Admin Panel button for direct access */}
+            <Link 
+              href="/admin" 
+              className="hidden md:flex items-center gap-1 px-3 py-1.5 rounded-full bg-[#BE3D69] text-white text-xs font-semibold hover:bg-[#D85C83] transition-all shadow-sm"
+              title="Admin Panel"
+            >
+              <ShieldAlert className="w-3.5 h-3.5" />
+              <span>Admin</span>
+            </Link>
+
 
 
           </div>

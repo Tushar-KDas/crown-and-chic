@@ -34,7 +34,7 @@ let users: AppUser[] = [
   {
     id: 'user-super-admin',
     email: 'tusharkumardas.ai@gmail.com',
-    password: 'Nishita018879',
+    password: 'Tushar018879',
     full_name: 'Tushar Kumar Das',
     phone: '01711-000000',
     role: 'super_admin',

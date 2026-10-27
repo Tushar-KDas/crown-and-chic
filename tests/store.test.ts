@@ -153,7 +153,7 @@ describe('Store & Atomic Inventory Tests', () => {
 
 describe('4-Tier User Roles & Authentication Tests', () => {
   it('authenticates Super Admin with specified credentials', () => {
-    const auth = store.authenticateUser('tusharkumardas.ai@gmail.com', 'Nishita018879');
+    const auth = store.authenticateUser('tusharkumardas.ai@gmail.com', 'Tushar018879');
     expect(auth.success).toBe(true);
     expect(auth.user?.role).toBe('super_admin');
     expect(auth.user?.email).toBe('tusharkumardas.ai@gmail.com');

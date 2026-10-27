@@ -36,6 +36,30 @@ function AuthContent() {
   const [message, setMessage] = useState('');
   const [isSuccess, setIsSuccess] = useState(false);
 
+  const fillSuperAdmin = () => {
+    setMode('login');
+    setEmail('tusharkumardas.ai@gmail.com');
+    setPassword('Tushar018879');
+    setMessage('Super Admin credentials loaded. Click "Sign In to Account" to proceed.');
+    setIsSuccess(true);
+  };
+
+  const fillDemoAdmin = () => {
+    setMode('login');
+    setEmail('admin@crownandchic.com');
+    setPassword('Admin123456');
+    setMessage('Admin credentials loaded. Click "Sign In to Account".');
+    setIsSuccess(true);
+  };
+
+  const fillDemoMod = () => {
+    setMode('login');
+    setEmail('moderator@crownandchic.com');
+    setPassword('Mod123456');
+    setMessage('Moderator credentials loaded. Click "Sign In to Account".');
+    setIsSuccess(true);
+  };
+
 
 
   const handleSubmit = async (e: React.FormEvent) => {
@@ -255,6 +279,52 @@ function AuthContent() {
               <ArrowRight className="w-4 h-4" />
             </button>
           </form>
+
+          {/* Quick-fill testing panel for Super Admin and Staff */}
+          <div className="pt-4 border-t border-[#FCE8EE] space-y-2.5">
+            <div className="flex items-center gap-1.5 text-[11px] font-bold text-[#30252A]">
+              <KeyRound className="w-3.5 h-3.5 text-[#C49A52]" />
+              <span>Pre-Configured System Accounts (1-Click Test):</span>
+            </div>
+
+            <div className="grid grid-cols-1 gap-2">
+              <button
+                type="button"
+                onClick={fillSuperAdmin}
+                className="w-full text-left p-2.5 rounded-xl border border-[#C49A52]/40 bg-[#FFFDF8] hover:bg-[#FCE8EE]/50 transition-colors flex items-center justify-between text-xs"
+              >
+                <div>
+                  <div className="flex items-center gap-1.5 font-bold text-[#30252A]">
+                    <Crown className="w-3.5 h-3.5 text-[#C49A52] fill-[#C49A52]" />
+                    <span>Super Admin</span>
+                    <span className="text-[10px] px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 font-semibold">Full Control</span>
+                  </div>
+                  <p className="text-[10px] text-[#796B70] font-mono mt-0.5">tusharkumardas.ai@gmail.com</p>
+                </div>
+                <span className="text-[11px] font-semibold text-[#BE3D69] underline">Fill &rarr;</span>
+              </button>
+
+              <div className="grid grid-cols-2 gap-2">
+                <button
+                  type="button"
+                  onClick={fillDemoAdmin}
+                  className="text-left p-2 rounded-xl border border-gray-200 bg-gray-50/50 hover:bg-gray-100 transition-colors text-xs"
+                >
+                  <span className="font-bold text-[#30252A] block text-[11px]">Admin</span>
+                  <span className="text-[9px] text-[#796B70] block font-mono truncate">admin@crownandchic.com</span>
+                </button>
+
+                <button
+                  type="button"
+                  onClick={fillDemoMod}
+                  className="text-left p-2 rounded-xl border border-gray-200 bg-gray-50/50 hover:bg-gray-100 transition-colors text-xs"
+                >
+                  <span className="font-bold text-[#30252A] block text-[11px]">Moderator</span>
+                  <span className="text-[9px] text-[#796B70] block font-mono truncate">moderator@crownandchic.com</span>
+                </button>
+              </div>
+            </div>
+          </div>
 
 
 

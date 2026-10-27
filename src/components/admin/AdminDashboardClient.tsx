@@ -56,33 +56,7 @@ export function AdminDashboardClient({
   siteSettings: initialSettings,
   initialUsers = []
 }: AdminDashboardClientProps) {
-  const { user, isStaff, isSuperAdmin, isAdmin, isModerator, logout, login, isLoading } = useAuth();
-  
-  // Dedicated Staff Portal Login State (when accessed unauthenticated)
-  const [loginEmail, setLoginEmail] = useState('');
-  const [loginPassword, setLoginPassword] = useState('');
-  const [showPassword, setShowPassword] = useState(false);
-  const [loginLoading, setLoginLoading] = useState(false);
-  const [loginError, setLoginError] = useState('');
-
-  const handleStaffLogin = async (e: React.FormEvent) => {
-    e.preventDefault();
-    setLoginLoading(true);
-    setLoginError('');
-
-    const res = await login(loginEmail, loginPassword);
-    setLoginLoading(false);
-
-    if (!res.success || !res.user) {
-      setLoginError(res.error || 'Invalid email or password.');
-      return;
-    }
-
-    if (res.user.role === 'customer') {
-      setLoginError('Access Denied: Customer accounts do not have staff permissions.');
-      return;
-    }
-  };
+  const { user, isStaff, isSuperAdmin, isAdmin, isModerator, logout, isLoading } = useAuth();
   const [activeTab, setActiveTab] = useState<
     'dashboard' | 'users' | 'fraud' | 'categories' | 'products' | 'variations' | 'orders' | 'stock' | 'payments' | 'settings'
   >('dashboard');
@@ -364,81 +338,41 @@ export function AdminDashboardClient({
     );
   }
 
-  // Guard 1: Not logged in -> Secure Private Staff Portal Login (No credentials exposed)
+  // Guard 1: Not logged in
   if (!user) {
     return (
       <div className="min-h-screen bg-[#FFFDF8] flex flex-col items-center justify-center p-4">
-        <div className="max-w-md w-full bg-white rounded-3xl border border-[#FCE8EE] p-6 sm:p-8 shadow-luxury space-y-6">
-          <div className="text-center space-y-2">
-            <div className="relative w-16 h-16 mx-auto rounded-full overflow-hidden border border-[#D85C83]/20 bg-[#FFFDF8] shadow-sm">
-              <Image src="/images/brand/crown-and-chic-emblem.png" alt="Crown & Chic" fill className="object-cover" />
-            </div>
-            <h2 className="font-serif text-2xl font-bold text-[#30252A]">Crown &amp; Chic Staff Portal</h2>
-            <p className="text-xs text-[#796B70]">
-              Restricted management area. Please sign in with your authorized staff credentials to continue.
+        <div className="max-w-md w-full bg-white rounded-3xl border border-[#FCE8EE] p-8 shadow-luxury text-center space-y-5">
+          <div className="relative w-16 h-16 mx-auto rounded-full overflow-hidden border border-[#D85C83]/20 bg-[#FFFDF8] shadow-sm">
+            <Image src="/images/brand/crown-and-chic-emblem.png" alt="Crown & Chic" fill className="object-cover" />
+          </div>
+          <div>
+            <h2 className="font-serif text-2xl font-bold text-[#30252A]">Staff Authentication Required</h2>
+            <p className="text-xs text-[#796B70] mt-1.5 leading-relaxed">
+              The Administration Console is reserved for Crown &amp; Chic staff accounts (Super Admin, Admin, Moderator). Individual credentials are required.
             </p>
           </div>
 
-          {loginError && (
-            <div className="p-3.5 rounded-2xl text-xs bg-red-50 text-red-800 border border-red-200 flex items-center gap-2.5">
-              <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />
-              <span>{loginError}</span>
+          <div className="p-3.5 rounded-2xl bg-amber-50 border border-amber-200 text-left text-xs text-amber-900 space-y-1.5">
+            <div className="flex items-center gap-1.5 font-bold text-[#BE3D69]">
+              <Crown className="w-4 h-4 text-[#C49A52]" />
+              <span>Super Admin Credentials:</span>
             </div>
-          )}
-
-          <form onSubmit={handleStaffLogin} className="space-y-4">
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-[#30252A]">Staff Email</label>
-              <div className="relative">
-                <input
-                  type="email"
-                  required
-                  value={loginEmail}
-                  onChange={(e) => setLoginEmail(e.target.value)}
-                  placeholder="admin@crownandchic.com"
-                  className="w-full pl-9 pr-3 py-2.5 rounded-xl border border-[#D85C83]/30 text-xs text-[#30252A] focus:outline-none focus:border-[#BE3D69]"
-                />
-                <Lock className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
-              </div>
-            </div>
-
-            <div className="space-y-1">
-              <label className="text-xs font-bold text-[#30252A]">Password</label>
-              <div className="relative">
-                <input
-                  type={showPassword ? 'text' : 'password'}
-                  required
-                  value={loginPassword}
-                  onChange={(e) => setLoginPassword(e.target.value)}
-                  placeholder="••••••••"
-                  className="w-full pl-9 pr-10 py-2.5 rounded-xl border border-[#D85C83]/30 text-xs text-[#30252A] focus:outline-none focus:border-[#BE3D69]"
-                />
-                <Lock className="w-4 h-4 text-gray-400 absolute left-3 top-3" />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-2.5 text-gray-400 hover:text-gray-600"
-                >
-                  <Eye className="w-4 h-4" />
-                </button>
-              </div>
-            </div>
-
-            <button
-              type="submit"
-              disabled={loginLoading}
-              className="w-full py-3.5 rounded-full bg-[#BE3D69] text-white text-xs font-bold uppercase tracking-wider hover:bg-[#D85C83] transition-all flex items-center justify-center gap-2 shadow-sm disabled:opacity-50"
-            >
-              <span>{loginLoading ? 'Authenticating...' : 'Sign In to Admin Console'}</span>
-              <ArrowRight className="w-4 h-4" />
-            </button>
-          </form>
-
-          <div className="text-center pt-2">
-            <Link href="/" className="inline-block text-xs text-[#796B70] hover:text-[#BE3D69] underline">
-              &larr; Return to Customer Storefront
-            </Link>
+            <p className="font-mono text-[11px]">Email: <strong>tusharkumardas.ai@gmail.com</strong></p>
+            <p className="font-mono text-[11px]">Password: <strong>Tushar018879</strong></p>
           </div>
+
+          <Link
+            href="/auth?redirect=/admin&message=staff_required"
+            className="w-full py-3.5 rounded-full bg-[#BE3D69] text-white text-xs font-bold uppercase tracking-wider hover:bg-[#D85C83] transition-all flex items-center justify-center gap-2 shadow-sm"
+          >
+            <span>Sign In to Admin Console</span>
+            <ArrowRight className="w-4 h-4" />
+          </Link>
+
+          <Link href="/" className="inline-block text-xs text-[#796B70] hover:text-[#BE3D69] underline">
+            &larr; Return to Customer Storefront
+          </Link>
         </div>
       </div>
     );

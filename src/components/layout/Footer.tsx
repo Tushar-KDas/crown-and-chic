@@ -165,6 +165,10 @@ export function Footer({ settings }: FooterProps) {
         <div className="pt-6 border-t border-white/20 flex flex-col sm:flex-row items-center justify-between text-[11px] text-[#FCE8EE]/90 gap-2">
           <span>Crown &amp; Chic — Fashion, Beauty &amp; Lifestyle Bangladesh</span>
           <div className="flex items-center gap-4">
+            <Link href="/admin" className="text-white font-semibold hover:underline">
+              Admin Portal
+            </Link>
+            <span>&bull;</span>
             <Link href="/track-order" className="hover:underline">
               Order Tracking
             </Link>
