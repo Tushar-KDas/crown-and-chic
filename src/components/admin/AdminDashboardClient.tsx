@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { 
@@ -444,6 +444,36 @@ export function AdminDashboardClient({
   const [userActionMsg, setUserActionMsg] = useState<{ text: string; type: 'success' | 'error' } | null>(null);
   const [isSubmittingStaff, setIsSubmittingStaff] = useState(false);
 
+  // Sync users with server & localStorage so refreshing never loses newly added staff
+  useEffect(() => {
+    try {
+      const cached = localStorage.getItem('cnc_cached_users');
+      if (cached) {
+        const parsed = JSON.parse(cached);
+        if (Array.isArray(parsed) && parsed.length > 0) {
+          setUsersList(prev => {
+            const map = new Map<string, AppUser>();
+            prev.forEach(u => map.set(u.email.toLowerCase(), u));
+            parsed.forEach((u: AppUser) => map.set(u.email.toLowerCase(), u));
+            return Array.from(map.values());
+          });
+        }
+      }
+    } catch {}
+
+    fetch('/api/admin/users')
+      .then(r => r.json())
+      .then(d => {
+        if (d.success && Array.isArray(d.users)) {
+          setUsersList(d.users);
+          try {
+            localStorage.setItem('cnc_cached_users', JSON.stringify(d.users));
+          } catch {}
+        }
+      })
+      .catch(() => {});
+  }, []);
+
   // Variation interactive mockup state
   const [varSize, setVarSize] = useState('M');
   const [varColor, setVarColor] = useState('Rose Pink');
@@ -588,7 +618,13 @@ export function AdminDashboardClient({
         setUserActionMsg({ text: data.error || 'Failed to add staff member.', type: 'error' });
       } else {
         setUserActionMsg({ text: `Staff member ${data.user.full_name} (${data.user.role}) successfully created!`, type: 'success' });
-        setUsersList(prev => [data.user, ...prev]);
+        setUsersList(prev => {
+          const updated = [data.user, ...prev.filter(u => u.email.toLowerCase() !== data.user.email.toLowerCase())];
+          try {
+            localStorage.setItem('cnc_cached_users', JSON.stringify(updated));
+          } catch {}
+          return updated;
+        });
         setShowAddStaffModal(false);
         setStaffForm({ fullName: '', email: '', phone: '', password: '', role: 'moderator' });
       }
@@ -613,7 +649,11 @@ export function AdminDashboardClient({
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        setUsersList(prev => prev.map(u => u.id === targetUserId ? { ...u, role: newRole } : u));
+        setUsersList(prev => {
+          const updated = prev.map(u => u.id === targetUserId ? { ...u, role: newRole } : u);
+          try { localStorage.setItem('cnc_cached_users', JSON.stringify(updated)); } catch {}
+          return updated;
+        });
         setUserActionMsg({ text: 'User role updated successfully.', type: 'success' });
       } else {
         setUserActionMsg({ text: data.error || 'Failed to update role.', type: 'error' });
@@ -629,7 +669,7 @@ export function AdminDashboardClient({
       return;
     }
 
-    const newStatus = currentStatus === 'active' ? 'suspended' : 'active';
+    const newStatus: 'active' | 'suspended' = currentStatus === 'active' ? 'suspended' : 'active';
     try {
       const res = await fetch('/api/admin/users', {
         method: 'PATCH',
@@ -638,7 +678,11 @@ export function AdminDashboardClient({
       });
       const data = await res.json();
       if (res.ok && data.success) {
-        setUsersList(prev => prev.map(u => u.id === targetUserId ? { ...u, status: newStatus } : u));
+        setUsersList(prev => {
+          const updated = prev.map(u => u.id === targetUserId ? { ...u, status: newStatus } : u);
+          try { localStorage.setItem('cnc_cached_users', JSON.stringify(updated)); } catch {}
+          return updated;
+        });
         setUserActionMsg({ text: `Account has been set to ${newStatus}.`, type: 'success' });
       } else {
         setUserActionMsg({ text: data.error || 'Failed to update account status.', type: 'error' });
