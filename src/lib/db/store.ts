@@ -331,6 +331,15 @@ export const store = {
     return newCat;
   },
 
+  deleteCategory(id: string): boolean {
+    const idx = categories.findIndex(c => c.id === id);
+    if (idx !== -1) {
+      categories.splice(idx, 1);
+      return true;
+    }
+    return false;
+  },
+
   // --- Products ---
   getProducts(filter?: {
     categorySlug?: string;
@@ -413,6 +422,26 @@ export const store = {
       const v = prod.variants.find(variant => variant.id === variantId);
       if (v) {
         v.stock_quantity = Math.max(0, newStock);
+        return true;
+      }
+    }
+    return false;
+  },
+
+  deleteProduct(id: string): boolean {
+    const idx = products.findIndex(p => p.id === id);
+    if (idx !== -1) {
+      products.splice(idx, 1);
+      return true;
+    }
+    return false;
+  },
+
+  updateVariant(variantId: string, updates: Partial<ProductVariant>): boolean {
+    for (const prod of products) {
+      const v = prod.variants.find(variant => variant.id === variantId);
+      if (v) {
+        Object.assign(v, updates);
         return true;
       }
     }

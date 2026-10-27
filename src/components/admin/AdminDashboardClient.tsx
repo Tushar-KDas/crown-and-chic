@@ -33,9 +33,15 @@ import {
   MessageSquare,
   AlertCircle,
   KeyRound,
-  Filter
+  Filter,
+  Plus,
+  Edit2,
+  Trash2,
+  ExternalLink,
+  Sparkles,
+  Tag
 } from 'lucide-react';
-import { Order, Product, Category, PaymentMethodConfig, SiteSettings, OrderStatus, AppUser, UserRole } from '@/types';
+import { Order, Product, ProductVariant, Category, PaymentMethodConfig, SiteSettings, OrderStatus, AppUser, UserRole } from '@/types';
 import { formatBDT } from '@/lib/utils';
 import { useAuth } from '@/context/AuthContext';
 
@@ -85,6 +91,344 @@ export function AdminDashboardClient({
   // Stock editor state
   const [stockUpdates, setStockUpdates] = useState<{ [variantId: string]: number }>({});
   const [stockSuccess, setStockSuccess] = useState('');
+
+  // =========================================================================
+  // CATEGORIES MANAGEMENT STATE & HANDLERS
+  // =========================================================================
+  const [categoriesList, setCategoriesList] = useState<Category[]>(categories);
+  const [categorySearch, setCategorySearch] = useState('');
+  const [categoryModalOpen, setCategoryModalOpen] = useState(false);
+  const [editingCategory, setEditingCategory] = useState<Category | null>(null);
+  const [categoryForm, setCategoryForm] = useState({
+    name: '',
+    slug: '',
+    description: '',
+    image_url: '/images/categories/womens-fashion.jpg',
+    sort_order: 1,
+    is_active: true
+  });
+  const [isSavingCategory, setIsSavingCategory] = useState(false);
+  const [categoryActionMsg, setCategoryActionMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const openAddCategoryModal = () => {
+    setEditingCategory(null);
+    setCategoryForm({
+      name: '',
+      slug: '',
+      description: '',
+      image_url: '/images/categories/womens-fashion.jpg',
+      sort_order: categoriesList.length + 1,
+      is_active: true
+    });
+    setCategoryModalOpen(true);
+  };
+
+  const openEditCategoryModal = (cat: Category) => {
+    setEditingCategory(cat);
+    setCategoryForm({
+      name: cat.name,
+      slug: cat.slug,
+      description: cat.description || '',
+      image_url: cat.image_url || '/images/categories/womens-fashion.jpg',
+      sort_order: cat.sort_order || 1,
+      is_active: cat.is_active
+    });
+    setCategoryModalOpen(true);
+  };
+
+  const handleSaveCategory = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingCategory(true);
+    setCategoryActionMsg(null);
+    try {
+      const res = await fetch('/api/admin/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          id: editingCategory?.id,
+          ...categoryForm
+        })
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to save category');
+      }
+
+      if (editingCategory) {
+        setCategoriesList(prev => prev.map(c => c.id === data.category.id ? data.category : c));
+        setCategoryActionMsg({ type: 'success', text: `Category "${data.category.name}" updated successfully!` });
+      } else {
+        setCategoriesList(prev => [...prev, data.category]);
+        setCategoryActionMsg({ type: 'success', text: `New category "${data.category.name}" created!` });
+      }
+      setCategoryModalOpen(false);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Failed to save category';
+      setCategoryActionMsg({ type: 'error', text: msg });
+    } finally {
+      setIsSavingCategory(false);
+    }
+  };
+
+  const handleDeleteCategory = async (id: string, name: string) => {
+    if (!confirm(`Are you sure you want to delete category "${name}"?`)) return;
+    try {
+      const res = await fetch(`/api/admin/categories?id=${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setCategoriesList(prev => prev.filter(c => c.id !== id));
+        setCategoryActionMsg({ type: 'success', text: `Category "${name}" deleted.` });
+      } else {
+        const d = await res.json();
+        alert(d.error || 'Failed to delete');
+      }
+    } catch {
+      alert('Network error deleting category');
+    }
+  };
+
+  const handleToggleCategoryActive = async (cat: Category) => {
+    const updated = { ...cat, is_active: !cat.is_active };
+    try {
+      const res = await fetch('/api/admin/categories', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(updated)
+      });
+      if (res.ok) {
+        setCategoriesList(prev => prev.map(c => c.id === cat.id ? updated : c));
+      }
+    } catch {
+      alert('Error updating status');
+    }
+  };
+
+  // =========================================================================
+  // PRODUCTS MANAGEMENT STATE & HANDLERS
+  // =========================================================================
+  const [productSearch, setProductSearch] = useState('');
+  const [productCategoryFilter, setProductCategoryFilter] = useState('all');
+  const [productStatusFilter, setProductStatusFilter] = useState('all');
+  const [productModalOpen, setProductModalOpen] = useState(false);
+  const [editingProduct, setEditingProduct] = useState<Product | null>(null);
+  const [productForm, setProductForm] = useState({
+    title: '',
+    slug: '',
+    sku: '',
+    category_slug: 'womens-fashion',
+    base_price: 1500,
+    base_sale_price: '' as string | number,
+    short_description: '',
+    description: '',
+    image_url: '/images/products/cotton-kurti.jpg',
+    status: 'published' as 'published' | 'draft' | 'archived',
+    is_featured: false,
+    is_bestseller: false,
+    is_new_arrival: false,
+    initial_stock: 50
+  });
+  const [isSavingProduct, setIsSavingProduct] = useState(false);
+  const [productActionMsg, setProductActionMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const openAddProductModal = () => {
+    setEditingProduct(null);
+    setProductForm({
+      title: '',
+      slug: '',
+      sku: `CNC-${Date.now().toString().slice(-4)}`,
+      category_slug: categoriesList[0]?.slug || 'womens-fashion',
+      base_price: 1500,
+      base_sale_price: '',
+      short_description: '',
+      description: '',
+      image_url: '/images/products/cotton-kurti.jpg',
+      status: 'published',
+      is_featured: false,
+      is_bestseller: false,
+      is_new_arrival: false,
+      initial_stock: 50
+    });
+    setProductModalOpen(true);
+  };
+
+  const openEditProductModal = (prod: Product) => {
+    setEditingProduct(prod);
+    setProductForm({
+      title: prod.title,
+      slug: prod.slug,
+      sku: prod.sku || '',
+      category_slug: prod.categories[0]?.slug || 'womens-fashion',
+      base_price: prod.base_price,
+      base_sale_price: prod.base_sale_price ?? '',
+      short_description: prod.short_description || '',
+      description: prod.description || '',
+      image_url: prod.images[0]?.image_url || '/images/products/cotton-kurti.jpg',
+      status: prod.status,
+      is_featured: prod.is_featured,
+      is_bestseller: prod.is_bestseller,
+      is_new_arrival: prod.is_new_arrival,
+      initial_stock: prod.variants[0]?.stock_quantity || 30
+    });
+    setProductModalOpen(true);
+  };
+
+  const handleSaveProduct = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setIsSavingProduct(true);
+    setProductActionMsg(null);
+
+    const matchedCat = categoriesList.find(c => c.slug === productForm.category_slug) || categoriesList[0];
+    const generatedSlug = productForm.slug.trim() || productForm.title.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '');
+
+    // Default variants if new
+    const prodId = editingProduct?.id || `prod-${Date.now()}`;
+    const defaultVariants: ProductVariant[] = editingProduct?.variants?.length ? editingProduct.variants : [
+      {
+        id: `var-${prodId}-s`,
+        product_id: prodId,
+        sku: `${productForm.sku}-S`,
+        regular_price: Number(productForm.base_price),
+        sale_price: productForm.base_sale_price ? Number(productForm.base_sale_price) : null,
+        stock_quantity: Math.floor(Number(productForm.initial_stock) / 3) || 15,
+        low_stock_threshold: 5,
+        is_active: true,
+        attributes: { size: 'S', color: 'Rose Pink' }
+      },
+      {
+        id: `var-${prodId}-m`,
+        product_id: prodId,
+        sku: `${productForm.sku}-M`,
+        regular_price: Number(productForm.base_price),
+        sale_price: productForm.base_sale_price ? Number(productForm.base_sale_price) : null,
+        stock_quantity: Math.floor(Number(productForm.initial_stock) / 3) || 20,
+        low_stock_threshold: 5,
+        is_active: true,
+        attributes: { size: 'M', color: 'Rose Pink' }
+      },
+      {
+        id: `var-${prodId}-l`,
+        product_id: prodId,
+        sku: `${productForm.sku}-L`,
+        regular_price: Number(productForm.base_price),
+        sale_price: productForm.base_sale_price ? Number(productForm.base_sale_price) : null,
+        stock_quantity: Math.floor(Number(productForm.initial_stock) / 3) || 15,
+        low_stock_threshold: 5,
+        is_active: true,
+        attributes: { size: 'L', color: 'Rose Pink' }
+      }
+    ];
+
+    const payload: Partial<Product> = {
+      id: editingProduct?.id,
+      title: productForm.title,
+      slug: generatedSlug,
+      sku: productForm.sku,
+      base_price: Number(productForm.base_price),
+      base_sale_price: productForm.base_sale_price ? Number(productForm.base_sale_price) : null,
+      short_description: productForm.short_description,
+      description: productForm.description,
+      status: productForm.status,
+      is_featured: productForm.is_featured,
+      is_bestseller: productForm.is_bestseller,
+      is_new_arrival: productForm.is_new_arrival,
+      is_on_sale: Boolean(productForm.base_sale_price && Number(productForm.base_sale_price) < Number(productForm.base_price)),
+      categories: matchedCat ? [matchedCat] : [],
+      images: [
+        {
+          id: `img-${prodId}-1`,
+          product_id: prodId,
+          image_url: productForm.image_url,
+          alt_text: productForm.title,
+          is_primary: true
+        }
+      ],
+      variants: defaultVariants
+    };
+
+    try {
+      const res = await fetch('/api/admin/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload)
+      });
+      const data = await res.json();
+      if (!res.ok || !data.success) {
+        throw new Error(data.error || 'Failed to save product');
+      }
+
+      if (editingProduct) {
+        setProducts(prev => prev.map(p => p.id === data.product.id ? data.product : p));
+        setProductActionMsg({ type: 'success', text: `Product "${data.product.title}" updated successfully!` });
+      } else {
+        setProducts(prev => [data.product, ...prev]);
+        setProductActionMsg({ type: 'success', text: `New product "${data.product.title}" added to catalog!` });
+      }
+      setProductModalOpen(false);
+    } catch (err: unknown) {
+      const msg = err instanceof Error ? err.message : 'Error saving product';
+      setProductActionMsg({ type: 'error', text: msg });
+    } finally {
+      setIsSavingProduct(false);
+    }
+  };
+
+  const handleDeleteProduct = async (id: string, title: string) => {
+    if (!confirm(`Are you sure you want to delete "${title}"?`)) return;
+    try {
+      const res = await fetch(`/api/admin/products?id=${id}`, { method: 'DELETE' });
+      if (res.ok) {
+        setProducts(prev => prev.filter(p => p.id !== id));
+        setProductActionMsg({ type: 'success', text: `Product "${title}" deleted from catalog.` });
+      } else {
+        const d = await res.json();
+        alert(d.error || 'Failed to delete');
+      }
+    } catch {
+      alert('Error deleting product');
+    }
+  };
+
+  const handleToggleProductStatus = async (prod: Product) => {
+    const nextStatus = prod.status === 'published' ? 'draft' : 'published';
+    try {
+      const res = await fetch('/api/admin/products', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ id: prod.id, status: nextStatus })
+      });
+      if (res.ok) {
+        setProducts(prev => prev.map(p => p.id === prod.id ? { ...p, status: nextStatus } : p));
+      }
+    } catch {
+      alert('Error updating status');
+    }
+  };
+
+  // =========================================================================
+  // VARIATION MANAGEMENT STATE & HANDLERS
+  // =========================================================================
+  const [variationProductFilter, setVariationProductFilter] = useState('all');
+  const [variationSearch, setVariationSearch] = useState('');
+  const [variationActionMsg, setVariationActionMsg] = useState<{ type: 'success' | 'error'; text: string } | null>(null);
+
+  const handleUpdateVariantDirect = async (variantId: string, newStock: number, newPrice?: number) => {
+    try {
+      const stockRes = await fetch('/api/admin/stock', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ variantId, newStock })
+      });
+      if (stockRes.ok) {
+        setProducts(prev => prev.map(p => ({
+          ...p,
+          variants: p.variants.map(v => v.id === variantId ? { ...v, stock_quantity: Math.max(0, newStock), ...(newPrice ? { regular_price: newPrice } : {}) } : v)
+        })));
+        setVariationActionMsg({ type: 'success', text: `Variant stock updated to ${newStock} units.` });
+        setTimeout(() => setVariationActionMsg(null), 3000);
+      }
+    } catch {
+      alert('Error updating variant');
+    }
+  };
 
   // User Management state
   const [usersList, setUsersList] = useState<AppUser[]>(initialUsers);
@@ -1613,8 +1957,890 @@ export function AdminDashboardClient({
             </div>
           )}
 
+
+          {/* ================================================================ */}
+          {/* TAB: CATEGORY TAXONOMY MANAGEMENT */}
+          {/* ================================================================ */}
+          {activeTab === 'categories' && (
+            <div className="space-y-6">
+              
+              {/* Top Banner & KPI */}
+              <div className="p-5 rounded-3xl bg-white border border-[#FCE8EE] shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <h2 className="font-serif text-xl font-bold text-[#30252A] flex items-center gap-2">
+                    <FolderTree className="w-5 h-5 text-[#BE3D69]" />
+                    <span>Store Category Taxonomy</span>
+                  </h2>
+                  <p className="text-xs text-[#796B70]">
+                    Organize storefront navigation, banner collections, and catalog taxonomy.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs px-3 py-1.5 rounded-full bg-[#FCE8EE] text-[#BE3D69] font-bold">
+                    {categoriesList.length} Categories Total
+                  </span>
+                  <button
+                    onClick={openAddCategoryModal}
+                    className="px-4 py-2.5 rounded-full bg-[#BE3D69] text-white text-xs font-bold hover:bg-[#D85C83] transition-all flex items-center gap-1.5 shadow-sm"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>+ Add New Category</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Feedback Alert */}
+              {categoryActionMsg && (
+                <div className={`p-3.5 rounded-2xl text-xs flex items-center gap-2.5 ${
+                  categoryActionMsg.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'
+                }`}>
+                  {categoryActionMsg.type === 'success' ? <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" /> : <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />}
+                  <span className="font-medium">{categoryActionMsg.text}</span>
+                </div>
+              )}
+
+              {/* Search & Filter Bar */}
+              <div className="flex items-center justify-between gap-4 bg-white p-3 rounded-2xl border border-[#FCE8EE] shadow-2xs">
+                <div className="relative flex-1 max-w-md">
+                  <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    value={categorySearch}
+                    onChange={(e) => setCategorySearch(e.target.value)}
+                    placeholder="Search category by name or slug..."
+                    className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-gray-200 text-xs text-[#30252A] focus:outline-none focus:border-[#BE3D69]"
+                  />
+                </div>
+                <div className="text-xs text-[#796B70]">
+                  Showing <strong>{categoriesList.filter(c => c.name.toLowerCase().includes(categorySearch.toLowerCase()) || c.slug.toLowerCase().includes(categorySearch.toLowerCase())).length}</strong> of {categoriesList.length}
+                </div>
+              </div>
+
+              {/* Categories Table & Cards */}
+              <div className="bg-white rounded-3xl border border-[#FCE8EE] shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-[#FFFDF8] border-b border-[#FCE8EE] text-[#796B70] uppercase tracking-wider text-[10px]">
+                      <tr>
+                        <th className="py-3 px-4">Image</th>
+                        <th className="py-3 px-4">Category Name</th>
+                        <th className="py-3 px-4">Slug / URL</th>
+                        <th className="py-3 px-4">Sort Order</th>
+                        <th className="py-3 px-4">Status</th>
+                        <th className="py-3 px-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {categoriesList
+                        .filter(c => c.name.toLowerCase().includes(categorySearch.toLowerCase()) || c.slug.toLowerCase().includes(categorySearch.toLowerCase()))
+                        .map(cat => (
+                          <tr key={cat.id} className="hover:bg-[#FFFDF8]/50 transition-colors">
+                            <td className="py-3 px-4">
+                              <div className="relative w-12 h-12 rounded-xl overflow-hidden border border-[#D85C83]/20 bg-gray-50 shrink-0">
+                                <Image
+                                  src={cat.image_url || '/images/categories/womens-fashion.jpg'}
+                                  alt={cat.name}
+                                  fill
+                                  className="object-cover"
+                                />
+                              </div>
+                            </td>
+                            <td className="py-3 px-4">
+                              <span className="font-bold text-[#30252A] block text-sm">{cat.name}</span>
+                              <span className="text-[11px] text-[#796B70] line-clamp-1">{cat.description || 'No description provided.'}</span>
+                            </td>
+                            <td className="py-3 px-4">
+                              <Link
+                                href={`/category/${cat.slug}`}
+                                target="_blank"
+                                className="font-mono text-[11px] text-[#BE3D69] hover:underline flex items-center gap-1"
+                              >
+                                <span>/category/{cat.slug}</span>
+                                <ExternalLink className="w-3 h-3" />
+                              </Link>
+                            </td>
+                            <td className="py-3 px-4 font-mono font-bold text-gray-600">
+                              #{cat.sort_order || 1}
+                            </td>
+                            <td className="py-3 px-4">
+                              <button
+                                type="button"
+                                onClick={() => handleToggleCategoryActive(cat)}
+                                className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider cursor-pointer transition-all ${
+                                  cat.is_active
+                                    ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
+                                    : 'bg-gray-100 text-gray-500 border border-gray-200 hover:bg-gray-200'
+                                }`}
+                                title="Click to toggle active state"
+                              >
+                                {cat.is_active ? '● Active' : '○ Inactive'}
+                              </button>
+                            </td>
+                            <td className="py-3 px-4 text-right">
+                              <div className="flex items-center justify-end gap-1.5">
+                                <button
+                                  type="button"
+                                  onClick={() => openEditCategoryModal(cat)}
+                                  className="p-1.5 rounded-lg text-[#BE3D69] hover:bg-[#FCE8EE] transition-colors"
+                                  title="Edit Category"
+                                >
+                                  <Edit2 className="w-4 h-4" />
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={() => handleDeleteCategory(cat.id, cat.name)}
+                                  className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                                  title="Delete Category"
+                                >
+                                  <Trash2 className="w-4 h-4" />
+                                </button>
+                              </div>
+                            </td>
+                          </tr>
+                        ))}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          {/* ================================================================ */}
+          {/* TAB: PRODUCT CATALOG MANAGEMENT */}
+          {/* ================================================================ */}
+          {activeTab === 'products' && (
+            <div className="space-y-6">
+              
+              {/* Top Banner & KPI */}
+              <div className="p-5 rounded-3xl bg-white border border-[#FCE8EE] shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <h2 className="font-serif text-xl font-bold text-[#30252A] flex items-center gap-2">
+                    <Package className="w-5 h-5 text-[#BE3D69]" />
+                    <span>Product Catalog Management</span>
+                  </h2>
+                  <p className="text-xs text-[#796B70]">
+                    Create, edit, price, and publish boutique fashion &amp; lifestyle items.
+                  </p>
+                </div>
+                <div className="flex items-center gap-3">
+                  <span className="text-xs px-3 py-1.5 rounded-full bg-[#FCE8EE] text-[#BE3D69] font-bold">
+                    {products.length} Products in Catalog
+                  </span>
+                  <button
+                    onClick={openAddProductModal}
+                    className="px-4 py-2.5 rounded-full bg-[#BE3D69] text-white text-xs font-bold hover:bg-[#D85C83] transition-all flex items-center gap-1.5 shadow-sm"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>+ Add New Product</span>
+                  </button>
+                </div>
+              </div>
+
+              {/* Feedback Alert */}
+              {productActionMsg && (
+                <div className={`p-3.5 rounded-2xl text-xs flex items-center gap-2.5 ${
+                  productActionMsg.type === 'success' ? 'bg-emerald-50 text-emerald-800 border border-emerald-200' : 'bg-red-50 text-red-800 border border-red-200'
+                }`}>
+                  {productActionMsg.type === 'success' ? <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" /> : <AlertCircle className="w-4 h-4 text-red-600 shrink-0" />}
+                  <span className="font-medium">{productActionMsg.text}</span>
+                </div>
+              )}
+
+              {/* Search & Filters */}
+              <div className="flex flex-wrap items-center justify-between gap-3 bg-white p-3.5 rounded-2xl border border-[#FCE8EE] shadow-2xs">
+                <div className="relative flex-1 min-w-[200px]">
+                  <Search className="w-4 h-4 text-gray-400 absolute left-3 top-2.5" />
+                  <input
+                    type="text"
+                    value={productSearch}
+                    onChange={(e) => setProductSearch(e.target.value)}
+                    placeholder="Search by title, SKU, or keyword..."
+                    className="w-full pl-9 pr-3 py-1.5 rounded-xl border border-gray-200 text-xs text-[#30252A] focus:outline-none focus:border-[#BE3D69]"
+                  />
+                </div>
+
+                <div className="flex items-center gap-2">
+                  <select
+                    value={productCategoryFilter}
+                    onChange={(e) => setProductCategoryFilter(e.target.value)}
+                    className="px-3 py-1.5 rounded-xl border border-gray-200 text-xs text-[#30252A] bg-white focus:outline-none focus:border-[#BE3D69]"
+                  >
+                    <option value="all">All Categories</option>
+                    {categoriesList.map(c => (
+                      <option key={c.id} value={c.slug}>{c.name}</option>
+                    ))}
+                  </select>
+
+                  <select
+                    value={productStatusFilter}
+                    onChange={(e) => setProductStatusFilter(e.target.value)}
+                    className="px-3 py-1.5 rounded-xl border border-gray-200 text-xs text-[#30252A] bg-white focus:outline-none focus:border-[#BE3D69]"
+                  >
+                    <option value="all">All Status</option>
+                    <option value="published">Published</option>
+                    <option value="draft">Draft</option>
+                    <option value="archived">Archived</option>
+                  </select>
+                </div>
+              </div>
+
+              {/* Products Table */}
+              <div className="bg-white rounded-3xl border border-[#FCE8EE] shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-[#FFFDF8] border-b border-[#FCE8EE] text-[#796B70] uppercase tracking-wider text-[10px]">
+                      <tr>
+                        <th className="py-3 px-4">Product</th>
+                        <th className="py-3 px-4">Category</th>
+                        <th className="py-3 px-4">Base Price</th>
+                        <th className="py-3 px-4">Stock &amp; Variants</th>
+                        <th className="py-3 px-4">Badges</th>
+                        <th className="py-3 px-4">Status</th>
+                        <th className="py-3 px-4 text-right">Actions</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {products
+                        .filter(p => {
+                          const matchSearch = p.title.toLowerCase().includes(productSearch.toLowerCase()) ||
+                            (p.sku && p.sku.toLowerCase().includes(productSearch.toLowerCase()));
+                          const matchCat = productCategoryFilter === 'all' || p.categories.some(c => c.slug === productCategoryFilter);
+                          const matchStat = productStatusFilter === 'all' || p.status === productStatusFilter;
+                          return matchSearch && matchCat && matchStat;
+                        })
+                        .map(prod => {
+                          const totalStock = prod.variants.reduce((acc, v) => acc + (v.stock_quantity || 0), 0);
+                          const mainImg = prod.images[0]?.image_url || '/images/products/cotton-kurti.jpg';
+
+                          return (
+                            <tr key={prod.id} className="hover:bg-[#FFFDF8]/50 transition-colors">
+                              <td className="py-3 px-4">
+                                <div className="flex items-center gap-3">
+                                  <div className="relative w-12 h-14 rounded-xl overflow-hidden border border-[#D85C83]/20 bg-gray-50 shrink-0">
+                                    <Image
+                                      src={mainImg}
+                                      alt={prod.title}
+                                      fill
+                                      className="object-cover"
+                                    />
+                                  </div>
+                                  <div>
+                                    <Link
+                                      href={`/products/${prod.slug}`}
+                                      target="_blank"
+                                      className="font-bold text-[#30252A] hover:text-[#BE3D69] text-sm block"
+                                    >
+                                      {prod.title}
+                                    </Link>
+                                    <span className="font-mono text-[10px] text-[#796B70]">SKU: {prod.sku || 'N/A'}</span>
+                                  </div>
+                                </div>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className="inline-block px-2.5 py-1 rounded-full bg-rose-50 text-[#BE3D69] font-medium text-[11px]">
+                                  {prod.categories[0]?.name || 'Uncategorized'}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <div className="font-bold text-[#BE3D69] text-sm">
+                                  {formatBDT(prod.base_sale_price || prod.base_price)}
+                                </div>
+                                {prod.base_sale_price && (
+                                  <span className="line-through text-gray-400 text-[10px]">
+                                    {formatBDT(prod.base_price)}
+                                  </span>
+                                )}
+                              </td>
+                              <td className="py-3 px-4">
+                                <div className="font-bold text-gray-800">
+                                  {totalStock} in stock
+                                </div>
+                                <span className="text-[10px] text-[#796B70]">
+                                  {prod.variants.length} variant{prod.variants.length === 1 ? '' : 's'}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <div className="flex flex-wrap gap-1">
+                                  {prod.is_featured && (
+                                    <span className="px-1.5 py-0.5 rounded bg-amber-100 text-amber-800 text-[9px] font-bold">Featured</span>
+                                  )}
+                                  {prod.is_bestseller && (
+                                    <span className="px-1.5 py-0.5 rounded bg-rose-100 text-[#BE3D69] text-[9px] font-bold">Bestseller</span>
+                                  )}
+                                  {prod.is_new_arrival && (
+                                    <span className="px-1.5 py-0.5 rounded bg-purple-100 text-purple-800 text-[9px] font-bold">New</span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="py-3 px-4">
+                                <button
+                                  type="button"
+                                  onClick={() => handleToggleProductStatus(prod)}
+                                  className={`px-2.5 py-1 rounded-full text-[10px] font-bold uppercase tracking-wider cursor-pointer transition-all ${
+                                    prod.status === 'published'
+                                      ? 'bg-emerald-50 text-emerald-700 border border-emerald-200 hover:bg-emerald-100'
+                                      : 'bg-amber-50 text-amber-700 border border-amber-200 hover:bg-amber-100'
+                                  }`}
+                                  title="Click to toggle status"
+                                >
+                                  {prod.status}
+                                </button>
+                              </td>
+                              <td className="py-3 px-4 text-right">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => openEditProductModal(prod)}
+                                    className="p-1.5 rounded-lg text-[#BE3D69] hover:bg-[#FCE8EE] transition-colors"
+                                    title="Edit Product Details"
+                                  >
+                                    <Edit2 className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => {
+                                      setVariationProductFilter(prod.id);
+                                      setActiveTab('variations');
+                                    }}
+                                    className="p-1.5 rounded-lg text-purple-600 hover:bg-purple-50 transition-colors"
+                                    title="Manage Variants"
+                                  >
+                                    <Layers className="w-4 h-4" />
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleDeleteProduct(prod.id, prod.title)}
+                                    className="p-1.5 rounded-lg text-gray-400 hover:text-red-600 hover:bg-red-50 transition-colors"
+                                    title="Delete Product"
+                                  >
+                                    <Trash2 className="w-4 h-4" />
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
+          )}
+
+          {/* ================================================================ */}
+          {/* TAB: PRODUCT VARIATION MATRIX */}
+          {/* ================================================================ */}
+          {activeTab === 'variations' && (
+            <div className="space-y-6">
+              
+              {/* Top Banner */}
+              <div className="p-5 rounded-3xl bg-white border border-[#FCE8EE] shadow-sm flex flex-col sm:flex-row sm:items-center justify-between gap-4">
+                <div className="space-y-1">
+                  <h2 className="font-serif text-xl font-bold text-[#30252A] flex items-center gap-2">
+                    <Layers className="w-5 h-5 text-[#BE3D69]" />
+                    <span>Product Variation Matrix &amp; Inventory</span>
+                  </h2>
+                  <p className="text-xs text-[#796B70]">
+                    Directly audit and modify size, color, SKU stock units, and variant pricing.
+                  </p>
+                </div>
+                <div className="flex items-center gap-2">
+                  <select
+                    value={variationProductFilter}
+                    onChange={(e) => setVariationProductFilter(e.target.value)}
+                    className="px-3 py-2 rounded-xl border border-gray-200 text-xs font-semibold text-[#30252A] bg-white focus:outline-none focus:border-[#BE3D69]"
+                  >
+                    <option value="all">All Products</option>
+                    {products.map(p => (
+                      <option key={p.id} value={p.id}>{p.title}</option>
+                    ))}
+                  </select>
+                </div>
+              </div>
+
+              {/* Feedback Alert */}
+              {variationActionMsg && (
+                <div className="p-3.5 rounded-2xl text-xs bg-emerald-50 text-emerald-800 border border-emerald-200 flex items-center gap-2.5">
+                  <CheckCircle className="w-4 h-4 text-emerald-600 shrink-0" />
+                  <span className="font-medium">{variationActionMsg.text}</span>
+                </div>
+              )}
+
+              {/* Variations Table */}
+              <div className="bg-white rounded-3xl border border-[#FCE8EE] shadow-sm overflow-hidden">
+                <div className="overflow-x-auto">
+                  <table className="w-full text-left text-xs">
+                    <thead className="bg-[#FFFDF8] border-b border-[#FCE8EE] text-[#796B70] uppercase tracking-wider text-[10px]">
+                      <tr>
+                        <th className="py-3 px-4">Parent Product</th>
+                        <th className="py-3 px-4">Size Variant</th>
+                        <th className="py-3 px-4">Color Variant</th>
+                        <th className="py-3 px-4">Variant SKU</th>
+                        <th className="py-3 px-4">Current Stock Units</th>
+                        <th className="py-3 px-4">Regular Price</th>
+                        <th className="py-3 px-4 text-right">Instant Update</th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-100">
+                      {products
+                        .filter(p => variationProductFilter === 'all' || p.id === variationProductFilter)
+                        .flatMap(p => p.variants.map(v => ({ product: p, variant: v })))
+                        .map(({ product: p, variant: v }) => {
+                          const isLowStock = v.stock_quantity < 10;
+                          return (
+                            <tr key={v.id} className="hover:bg-[#FFFDF8]/50 transition-colors">
+                              <td className="py-3 px-4">
+                                <div className="flex items-center gap-2.5">
+                                  <div className="relative w-9 h-11 rounded-lg overflow-hidden border border-gray-100 bg-gray-50 shrink-0">
+                                    <Image
+                                      src={p.images[0]?.image_url || '/images/products/cotton-kurti.jpg'}
+                                      alt={p.title}
+                                      fill
+                                      className="object-cover"
+                                    />
+                                  </div>
+                                  <span className="font-bold text-[#30252A] line-clamp-1">{p.title}</span>
+                                </div>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className="inline-block px-2.5 py-1 rounded-lg bg-gray-100 text-[#30252A] font-bold text-xs">
+                                  {v.attributes.size || 'Standard'}
+                                </span>
+                              </td>
+                              <td className="py-3 px-4">
+                                <span className="inline-flex items-center gap-1.5 font-medium text-gray-700">
+                                  <span className="w-3 h-3 rounded-full bg-[#D85C83] border border-gray-200" />
+                                  <span>{v.attributes.color || 'Rose Pink'}</span>
+                                </span>
+                              </td>
+                              <td className="py-3 px-4 font-mono text-[11px] text-gray-600">
+                                {v.sku}
+                              </td>
+                              <td className="py-3 px-4">
+                                <div className="flex items-center gap-2">
+                                  <span className={`font-mono text-sm font-bold ${
+                                    isLowStock ? 'text-amber-600' : 'text-emerald-700'
+                                  }`}>
+                                    {v.stock_quantity}
+                                  </span>
+                                  {isLowStock && (
+                                    <span className="px-1.5 py-0.2 rounded bg-amber-100 text-amber-800 text-[9px] font-bold">
+                                      Low
+                                    </span>
+                                  )}
+                                </div>
+                              </td>
+                              <td className="py-3 px-4 font-bold text-[#BE3D69]">
+                                {formatBDT(v.regular_price)}
+                              </td>
+                              <td className="py-3 px-4 text-right">
+                                <div className="flex items-center justify-end gap-1.5">
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUpdateVariantDirect(v.id, v.stock_quantity + 10)}
+                                    className="px-2 py-1 rounded-lg bg-emerald-50 text-emerald-700 hover:bg-emerald-100 text-[10px] font-bold"
+                                    title="Add 10 units"
+                                  >
+                                    +10 Stock
+                                  </button>
+                                  <button
+                                    type="button"
+                                    onClick={() => handleUpdateVariantDirect(v.id, Math.max(0, v.stock_quantity - 5))}
+                                    className="px-2 py-1 rounded-lg bg-gray-100 text-gray-700 hover:bg-gray-200 text-[10px] font-bold"
+                                    title="Reduce 5 units"
+                                  >
+                                    -5 Stock
+                                  </button>
+                                </div>
+                              </td>
+                            </tr>
+                          );
+                        })}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+            </div>
+          )}
+
         </div>
       </main>
+
+      
+      {/* Category Add/Edit Modal */}
+      {categoryModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl p-6 max-w-lg w-full space-y-4 shadow-2xl border border-[#FCE8EE] max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-[#FCE8EE] pb-3">
+              <h3 className="font-serif font-bold text-lg text-[#30252A] flex items-center gap-2">
+                <FolderTree className="w-5 h-5 text-[#BE3D69]" />
+                <span>{editingCategory ? 'Edit Category' : 'Create New Category'}</span>
+              </h3>
+              <button
+                onClick={() => setCategoryModalOpen(false)}
+                className="p-1 rounded-full text-gray-400 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveCategory} className="space-y-4 text-xs">
+              <div className="space-y-1">
+                <label className="font-bold text-[#30252A]">Category Name</label>
+                <input
+                  type="text"
+                  required
+                  value={categoryForm.name}
+                  onChange={(e) => {
+                    const val = e.target.value;
+                    setCategoryForm(prev => ({
+                      ...prev,
+                      name: val,
+                      slug: editingCategory ? prev.slug : val.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')
+                    }));
+                  }}
+                  placeholder="e.g. Traditional Sarees"
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:border-[#BE3D69]"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-[#30252A]">Category Slug (URL Path)</label>
+                <input
+                  type="text"
+                  required
+                  value={categoryForm.slug}
+                  onChange={(e) => setCategoryForm(prev => ({ ...prev, slug: e.target.value }))}
+                  placeholder="traditional-sarees"
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 font-mono text-xs focus:outline-none focus:border-[#BE3D69]"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-[#30252A]">Description</label>
+                <textarea
+                  rows={2}
+                  value={categoryForm.description}
+                  onChange={(e) => setCategoryForm(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Short summary for category banner..."
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:border-[#BE3D69]"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-[#30252A]">Image URL or Asset Path</label>
+                <input
+                  type="text"
+                  required
+                  value={categoryForm.image_url}
+                  onChange={(e) => setCategoryForm(prev => ({ ...prev, image_url: e.target.value }))}
+                  placeholder="/images/categories/womens-fashion.jpg"
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:border-[#BE3D69]"
+                />
+                <div className="flex flex-wrap gap-1.5 pt-1 text-[10px] text-[#796B70]">
+                  <span>Presets:</span>
+                  {[
+                    '/images/categories/womens-fashion.jpg',
+                    '/images/categories/mens-fashion.jpg',
+                    '/images/categories/kids-fashion.jpg',
+                    '/images/categories/hijab-scarf.jpg',
+                    '/images/categories/bags-accessories.jpg',
+                    '/images/categories/footwear.jpg',
+                    '/images/categories/beauty-personal-care.jpg',
+                    '/images/categories/home-living.jpg'
+                  ].map(preset => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setCategoryForm(p => ({ ...p, image_url: preset }))}
+                      className="px-1.5 py-0.5 rounded bg-gray-100 hover:bg-[#FCE8EE] hover:text-[#BE3D69] text-gray-700"
+                    >
+                      {preset.split('/').pop()?.replace('.jpg', '')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="font-bold text-[#30252A]">Display Order</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={categoryForm.sort_order}
+                    onChange={(e) => setCategoryForm(prev => ({ ...prev, sort_order: Number(e.target.value) }))}
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:border-[#BE3D69]"
+                  />
+                </div>
+                <div className="space-y-1 flex flex-col justify-end">
+                  <label className="flex items-center gap-2 cursor-pointer py-2">
+                    <input
+                      type="checkbox"
+                      checked={categoryForm.is_active}
+                      onChange={(e) => setCategoryForm(prev => ({ ...prev, is_active: e.target.checked }))}
+                      className="rounded text-[#BE3D69] focus:ring-[#BE3D69]"
+                    />
+                    <span className="font-bold text-[#30252A]">Active in Navigation</span>
+                  </label>
+                </div>
+              </div>
+
+              <div className="pt-3 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setCategoryModalOpen(false)}
+                  className="flex-1 py-2.5 rounded-full bg-gray-100 text-[#30252A] font-semibold hover:bg-gray-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingCategory}
+                  className="flex-1 py-2.5 rounded-full bg-[#BE3D69] text-white font-semibold hover:bg-[#D85C83] disabled:opacity-50"
+                >
+                  {isSavingCategory ? 'Saving...' : 'Save Category'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
+
+      {/* Product Add/Edit Modal */}
+      {productModalOpen && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-4 bg-black/50 backdrop-blur-xs">
+          <div className="bg-white rounded-3xl p-6 max-w-2xl w-full space-y-4 shadow-2xl border border-[#FCE8EE] max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between border-b border-[#FCE8EE] pb-3">
+              <h3 className="font-serif font-bold text-lg text-[#30252A] flex items-center gap-2">
+                <Package className="w-5 h-5 text-[#BE3D69]" />
+                <span>{editingProduct ? 'Edit Product in Catalog' : 'Add New Product to Catalog'}</span>
+              </h3>
+              <button
+                onClick={() => setProductModalOpen(false)}
+                className="p-1 rounded-full text-gray-400 hover:text-gray-700"
+              >
+                ✕
+              </button>
+            </div>
+
+            <form onSubmit={handleSaveProduct} className="space-y-4 text-xs">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div className="space-y-1">
+                  <label className="font-bold text-[#30252A]">Product Title</label>
+                  <input
+                    type="text"
+                    required
+                    value={productForm.title}
+                    onChange={(e) => {
+                      const val = e.target.value;
+                      setProductForm(prev => ({
+                        ...prev,
+                        title: val,
+                        slug: editingProduct ? prev.slug : val.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)+/g, '')
+                      }));
+                    }}
+                    placeholder="e.g. Silk Georgette Anarkali"
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:border-[#BE3D69]"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-[#30252A]">SKU Code</label>
+                  <input
+                    type="text"
+                    required
+                    value={productForm.sku}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, sku: e.target.value }))}
+                    placeholder="CNC-ESK-01"
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 font-mono text-xs focus:outline-none focus:border-[#BE3D69]"
+                  />
+                </div>
+              </div>
+
+              <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                <div className="space-y-1">
+                  <label className="font-bold text-[#30252A]">Primary Category</label>
+                  <select
+                    value={productForm.category_slug}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, category_slug: e.target.value }))}
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs bg-white focus:outline-none focus:border-[#BE3D69]"
+                  >
+                    {categoriesList.map(c => (
+                      <option key={c.id} value={c.slug}>{c.name}</option>
+                    ))}
+                  </select>
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-[#30252A]">Regular Price (BDT ৳)</label>
+                  <input
+                    type="number"
+                    required
+                    min="1"
+                    value={productForm.base_price}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, base_price: Number(e.target.value) }))}
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:border-[#BE3D69]"
+                  />
+                </div>
+
+                <div className="space-y-1">
+                  <label className="font-bold text-[#30252A]">Sale Discount Price (Optional ৳)</label>
+                  <input
+                    type="number"
+                    min="1"
+                    value={productForm.base_sale_price}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, base_sale_price: e.target.value ? Number(e.target.value) : '' }))}
+                    placeholder="Optional sale price"
+                    className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:border-[#BE3D69]"
+                  />
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-[#30252A]">Product Slug (URL)</label>
+                <input
+                  type="text"
+                  required
+                  value={productForm.slug}
+                  onChange={(e) => setProductForm(prev => ({ ...prev, slug: e.target.value }))}
+                  placeholder="silk-georgette-anarkali"
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 font-mono text-xs focus:outline-none focus:border-[#BE3D69]"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-[#30252A]">Primary Image URL</label>
+                <input
+                  type="text"
+                  required
+                  value={productForm.image_url}
+                  onChange={(e) => setProductForm(prev => ({ ...prev, image_url: e.target.value }))}
+                  placeholder="/images/products/cotton-kurti.jpg"
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:border-[#BE3D69]"
+                />
+                <div className="flex flex-wrap gap-1.5 pt-1 text-[10px] text-[#796B70]">
+                  <span>Presets:</span>
+                  {[
+                    '/images/products/cotton-kurti.jpg',
+                    '/images/products/floral-maxi.jpg',
+                    '/images/products/salwar-kameez.jpg',
+                    '/images/products/chiffon-hijab.jpg',
+                    '/images/products/mens-shirt.jpg',
+                    '/images/products/shoulder-bag.jpg',
+                    '/images/products/running-shoes.jpg',
+                    '/images/products/kids-frock.jpg'
+                  ].map(preset => (
+                    <button
+                      key={preset}
+                      type="button"
+                      onClick={() => setProductForm(p => ({ ...p, image_url: preset }))}
+                      className="px-1.5 py-0.5 rounded bg-gray-100 hover:bg-[#FCE8EE] hover:text-[#BE3D69] text-gray-700"
+                    >
+                      {preset.split('/').pop()?.replace('.jpg', '')}
+                    </button>
+                  ))}
+                </div>
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-[#30252A]">Short Description</label>
+                <input
+                  type="text"
+                  value={productForm.short_description}
+                  onChange={(e) => setProductForm(prev => ({ ...prev, short_description: e.target.value }))}
+                  placeholder="Breathable premium cotton fabric with delicate thread embroidery..."
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:border-[#BE3D69]"
+                />
+              </div>
+
+              <div className="space-y-1">
+                <label className="font-bold text-[#30252A]">Full Product Details &amp; Specifications</label>
+                <textarea
+                  rows={3}
+                  value={productForm.description}
+                  onChange={(e) => setProductForm(prev => ({ ...prev, description: e.target.value }))}
+                  placeholder="Complete styling notes, fabric care, wash instructions..."
+                  className="w-full px-3 py-2 rounded-xl border border-gray-200 text-xs focus:outline-none focus:border-[#BE3D69]"
+                />
+              </div>
+
+              <div className="grid grid-cols-2 sm:grid-cols-4 gap-3 pt-1">
+                <div>
+                  <label className="font-bold text-[#30252A] block mb-1">Status</label>
+                  <select
+                    value={productForm.status}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, status: e.target.value as typeof productForm.status }))}
+                    className="w-full px-2.5 py-1.5 rounded-xl border border-gray-200 text-xs bg-white focus:outline-none focus:border-[#BE3D69]"
+                  >
+                    <option value="published">Published</option>
+                    <option value="draft">Draft</option>
+                    <option value="archived">Archived</option>
+                  </select>
+                </div>
+
+                <div className="flex items-center gap-2 pt-4">
+                  <input
+                    type="checkbox"
+                    id="is_featured"
+                    checked={productForm.is_featured}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, is_featured: e.target.checked }))}
+                    className="rounded text-[#BE3D69]"
+                  />
+                  <label htmlFor="is_featured" className="font-semibold text-xs text-[#30252A] cursor-pointer">
+                    Featured
+                  </label>
+                </div>
+
+                <div className="flex items-center gap-2 pt-4">
+                  <input
+                    type="checkbox"
+                    id="is_bestseller"
+                    checked={productForm.is_bestseller}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, is_bestseller: e.target.checked }))}
+                    className="rounded text-[#BE3D69]"
+                  />
+                  <label htmlFor="is_bestseller" className="font-semibold text-xs text-[#30252A] cursor-pointer">
+                    Bestseller
+                  </label>
+                </div>
+
+                <div className="flex items-center gap-2 pt-4">
+                  <input
+                    type="checkbox"
+                    id="is_new_arrival"
+                    checked={productForm.is_new_arrival}
+                    onChange={(e) => setProductForm(prev => ({ ...prev, is_new_arrival: e.target.checked }))}
+                    className="rounded text-[#BE3D69]"
+                  />
+                  <label htmlFor="is_new_arrival" className="font-semibold text-xs text-[#30252A] cursor-pointer">
+                    New Arrival
+                  </label>
+                </div>
+              </div>
+
+              <div className="pt-3 flex gap-2">
+                <button
+                  type="button"
+                  onClick={() => setProductModalOpen(false)}
+                  className="flex-1 py-2.5 rounded-full bg-gray-100 text-[#30252A] font-semibold hover:bg-gray-200"
+                >
+                  Cancel
+                </button>
+                <button
+                  type="submit"
+                  disabled={isSavingProduct}
+                  className="flex-1 py-2.5 rounded-full bg-[#BE3D69] text-white font-semibold hover:bg-[#D85C83] disabled:opacity-50"
+                >
+                  {isSavingProduct ? 'Saving...' : 'Save Product to Catalog'}
+                </button>
+              </div>
+            </form>
+          </div>
+        </div>
+      )}
 
       {/* Order Details Modal */}
       {selectedOrder && (
