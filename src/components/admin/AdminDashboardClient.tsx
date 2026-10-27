@@ -63,9 +63,42 @@ export function AdminDashboardClient({
   initialUsers = []
 }: AdminDashboardClientProps) {
   const { user, isStaff, isSuperAdmin, isAdmin, isModerator, logout, isLoading } = useAuth();
-  const [activeTab, setActiveTab] = useState<
-    'dashboard' | 'users' | 'fraud' | 'categories' | 'products' | 'variations' | 'orders' | 'stock' | 'payments' | 'settings'
-  >('dashboard');
+  type AdminTab = 'dashboard' | 'users' | 'fraud' | 'categories' | 'products' | 'variations' | 'orders' | 'stock' | 'payments' | 'settings';
+
+  const [activeTab, setActiveTabState] = useState<AdminTab>('dashboard');
+
+  // Restore and persist active tab across page refreshes
+  useEffect(() => {
+    try {
+      const params = new URLSearchParams(window.location.search);
+      const urlTab = params.get('tab') as AdminTab | null;
+      const savedTab = localStorage.getItem('cnc_admin_active_tab') as AdminTab | null;
+      const validTabs: AdminTab[] = ['dashboard', 'users', 'fraud', 'categories', 'products', 'variations', 'orders', 'stock', 'payments', 'settings'];
+
+      if (urlTab && validTabs.includes(urlTab)) {
+        setActiveTabState(urlTab);
+      } else if (savedTab && validTabs.includes(savedTab)) {
+        setActiveTabState(savedTab);
+        const url = new URL(window.location.href);
+        url.searchParams.set('tab', savedTab);
+        window.history.replaceState(null, '', url.toString());
+      }
+    } catch {
+      // Ignore
+    }
+  }, []);
+
+  const setActiveTab = (tab: AdminTab) => {
+    setActiveTabState(tab);
+    try {
+      localStorage.setItem('cnc_admin_active_tab', tab);
+      const url = new URL(window.location.href);
+      url.searchParams.set('tab', tab);
+      window.history.replaceState(null, '', url.toString());
+    } catch {
+      // Ignore
+    }
+  };
 
   const [orders, setOrders] = useState<Order[]>(initialOrders);
   const [products, setProducts] = useState<Product[]>(initialProducts);

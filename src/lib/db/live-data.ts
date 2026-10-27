@@ -371,9 +371,9 @@ export async function getLiveOrders(): Promise<Order[]> {
         .select('*, order_items(*)')
         .order('created_at', { ascending: false });
 
-      if (!error && data && data.length > 0) {
+      if (!error && data) {
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
-        return data.map((o: any) => ({
+        const sbOrders = data.map((o: any) => ({
           id: o.id,
           order_number: o.order_number,
           user_id: o.user_id,
@@ -412,6 +412,13 @@ export async function getLiveOrders(): Promise<Order[]> {
           created_at: o.created_at || new Date().toISOString(),
           updated_at: o.updated_at || new Date().toISOString()
         }));
+
+        const map = new Map<string, Order>();
+        store.getOrders().forEach(o => map.set(o.order_number.toLowerCase(), o));
+        sbOrders.forEach(o => map.set(o.order_number.toLowerCase(), o));
+        return Array.from(map.values()).sort(
+          (a, b) => new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
+        );
       }
     } catch (err) {
       console.warn('getLiveOrders Supabase error:', err);

@@ -605,6 +605,15 @@ export const store = {
     return { success: true, order: newOrder };
   },
 
+  addCreatedOrder(order: Order): void {
+    const existing = orders.findIndex(o => o.id === order.id || o.order_number === order.order_number);
+    if (existing !== -1) {
+      orders[existing] = order;
+    } else {
+      orders.unshift(order);
+    }
+  },
+
   updateOrderStatus(orderId: string, newStatus: OrderStatus): boolean {
     const o = orders.find(ord => ord.id === orderId);
     if (!o) return false;

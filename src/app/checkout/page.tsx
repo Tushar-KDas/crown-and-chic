@@ -43,6 +43,44 @@ export default function CheckoutPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
 
+  // Restore draft form info across page reloads
+  useEffect(() => {
+    try {
+      const saved = sessionStorage.getItem('cq_checkout_draft');
+      if (saved) {
+        const d = JSON.parse(saved);
+        if (d.customerName) setCustomerName(d.customerName);
+        if (d.customerPhone) setCustomerPhone(d.customerPhone);
+        if (d.customerEmail) setCustomerEmail(d.customerEmail);
+        if (d.division) setDivision(d.division);
+        if (d.district) setDistrict(d.district);
+        if (d.thana) setThana(d.thana);
+        if (d.fullAddress) setFullAddress(d.fullAddress);
+        if (d.deliveryNotes) setDeliveryNotes(d.deliveryNotes);
+      }
+    } catch {
+      // Ignore
+    }
+  }, []);
+
+  // Save draft form info on changes
+  useEffect(() => {
+    try {
+      sessionStorage.setItem('cq_checkout_draft', JSON.stringify({
+        customerName,
+        customerPhone,
+        customerEmail,
+        division,
+        district,
+        thana,
+        fullAddress,
+        deliveryNotes
+      }));
+    } catch {
+      // Ignore
+    }
+  }, [customerName, customerPhone, customerEmail, division, district, thana, fullAddress, deliveryNotes]);
+
   // Find active division districts & thanas
   const activeDivisionData = BANGLADESH_DIVISIONS.find(d => d.name === division) || BANGLADESH_DIVISIONS[0];
   const activeDistrictData = activeDivisionData.districts.find(dist => dist.name === district) || activeDivisionData.districts[0];
@@ -121,6 +159,12 @@ export default function CheckoutPage() {
           sender_phone: senderPhone.trim() || customerPhone.trim(),
           items: items.map(i => ({
             variant_id: i.variant.id,
+            product_id: i.product.id,
+            product_title: i.product.title,
+            variant_title: `${i.variant.attributes?.size ? `Size: ${i.variant.attributes.size}` : ''} ${i.variant.attributes?.color ? `| Color: ${i.variant.attributes.color}` : ''}`.trim() || 'Standard',
+            sku: i.variant.sku,
+            unit_price: i.unit_price,
+            image_url: i.variant.image_url || i.product.images[0]?.image_url,
             quantity: i.quantity
           }))
         })
@@ -136,6 +180,7 @@ export default function CheckoutPage() {
 
       // Order placed successfully!
       clearCart();
+      try { sessionStorage.removeItem('cq_checkout_draft'); } catch {}
       router.push(`/order-confirmation?orderNumber=${encodeURIComponent(data.orderNumber)}`);
 
     } catch (err) {

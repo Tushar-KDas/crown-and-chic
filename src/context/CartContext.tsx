@@ -37,88 +37,15 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
     try {
       const saved = localStorage.getItem('cq_cart');
       if (saved) {
-        setItems(JSON.parse(saved));
+        const parsed: CartItemType[] = JSON.parse(saved);
+        // Filter out legacy mock cart items if any exist from older sessions
+        const realItems = parsed.filter(i => !i.id?.startsWith('mock-cart'));
+        setItems(realItems);
       } else {
-        // Default preview cart matching the mockup (Floral Maxi Dress + Cotton Kurti)
-        // so the user sees the exact mockup state immediately upon loading!
-        const initialMockCart: CartItemType[] = [
-          {
-            id: 'mock-cart-1',
-            product: {
-              id: 'prod-2',
-              title: 'Floral Maxi Dress',
-              slug: 'floral-maxi-dress',
-              base_price: 1600,
-              base_sale_price: 1250,
-              status: 'published',
-              is_featured: true,
-              is_bestseller: true,
-              is_new_arrival: false,
-              is_on_sale: true,
-              rating: 4.7,
-              review_count: 98,
-              images: [{ id: 'i1', product_id: 'prod-2', image_url: '/images/products/floral-maxi.jpg', is_primary: true }],
-              variants: [],
-              categories: [],
-              created_at: '',
-              updated_at: ''
-            },
-            variant: {
-              id: 'var-2-m-pink',
-              product_id: 'prod-2',
-              sku: 'CNC-FMD-M-PINK',
-              regular_price: 1600,
-              sale_price: 1250,
-              stock_quantity: 20,
-              low_stock_threshold: 5,
-              is_active: true,
-              image_url: '/images/products/floral-maxi.jpg',
-              attributes: { size: 'M', color: 'Pink' }
-            },
-            quantity: 1,
-            unit_price: 1250
-          },
-          {
-            id: 'mock-cart-2',
-            product: {
-              id: 'prod-7',
-              title: 'Cotton Kurti',
-              slug: 'cotton-kurti',
-              base_price: 2000,
-              base_sale_price: 1600,
-              status: 'published',
-              is_featured: true,
-              is_bestseller: false,
-              is_new_arrival: false,
-              is_on_sale: true,
-              rating: 4.8,
-              review_count: 45,
-              images: [{ id: 'i2', product_id: 'prod-7', image_url: '/images/products/cotton-kurti.jpg', is_primary: true }],
-              variants: [],
-              categories: [],
-              created_at: '',
-              updated_at: ''
-            },
-            variant: {
-              id: 'var-7-m-white',
-              product_id: 'prod-7',
-              sku: 'CNC-CK-M-WHITE',
-              regular_price: 2000,
-              sale_price: 1600,
-              stock_quantity: 15,
-              low_stock_threshold: 5,
-              is_active: true,
-              image_url: '/images/products/cotton-kurti.jpg',
-              attributes: { size: 'L', color: 'White' }
-            },
-            quantity: 1,
-            unit_price: 1600
-          }
-        ];
-        setItems(initialMockCart);
+        setItems([]);
       }
     } catch {
-      // Fallback
+      setItems([]);
     }
     setIsInitialized(true);
   }, []);
