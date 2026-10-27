@@ -27,10 +27,10 @@ async function getRequester(): Promise<{ id: string; email: string; role: UserRo
   const adminSupabase = getAdminSupabaseClient();
   if (adminSupabase) {
     try {
-      const { data: profile } = await adminSupabase.from('profiles').select('*').eq('id', userId).single();
-      const { data: userRoleRow } = await adminSupabase.from('user_roles').select('role_id').eq('user_id', userId).single();
+      const { data: profile } = await adminSupabase.from('profiles').select('*').eq('id', userId).maybeSingle();
+      const { data: userRoleRow } = await adminSupabase.from('user_roles').select('role_id').eq('user_id', userId).maybeSingle();
       if (profile && userRoleRow) {
-        const { data: roleRow } = await adminSupabase.from('roles').select('name').eq('id', userRoleRow.role_id).single();
+        const { data: roleRow } = await adminSupabase.from('roles').select('name').eq('id', userRoleRow.role_id).maybeSingle();
         return {
           id: profile.id,
           email: profile.email,
@@ -180,10 +180,14 @@ export async function POST(request: Request) {
           const { data: roles } = await adminSupabase.from('roles').select('*');
           const targetRole = roles?.find(r => r.name === role);
           if (targetRole) {
-            await adminSupabase.from('user_roles').upsert({
+            await adminSupabase.from('user_roles').delete().eq('user_id', supabaseUserId);
+            const { error: insErr } = await adminSupabase.from('user_roles').insert({
               user_id: supabaseUserId,
               role_id: targetRole.id
-            }, { onConflict: 'user_id' });
+            });
+            if (insErr) {
+              console.error('Supabase insert user_role error:', insErr);
+            }
           }
         }
       } catch (sbErr) {
@@ -251,10 +255,14 @@ export async function PATCH(request: Request) {
         const { data: roles } = await adminSupabase.from('roles').select('*');
         const targetRole = roles?.find(r => r.name === role);
         if (targetRole) {
-          await adminSupabase.from('user_roles').upsert({
+          await adminSupabase.from('user_roles').delete().eq('user_id', userId);
+          const { error: insErr } = await adminSupabase.from('user_roles').insert({
             user_id: userId,
             role_id: targetRole.id
-          }, { onConflict: 'user_id' });
+          });
+          if (insErr) {
+            console.error('Supabase update user_role error:', insErr);
+          }
         }
       } catch (sbErr) {
         console.error('Supabase role update error:', sbErr);

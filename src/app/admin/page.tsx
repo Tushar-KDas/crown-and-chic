@@ -1,3 +1,10 @@
+import { 
+  getLiveOrders, 
+  getLiveProducts, 
+  getLiveAllCategories, 
+  getLivePaymentMethods, 
+  getLiveSiteSettings 
+} from '@/lib/db/live-data';
 import { store } from '@/lib/db/store';
 import { AdminDashboardClient } from '@/components/admin/AdminDashboardClient';
 import { getAdminSupabaseClient } from '@/lib/supabase/server';
@@ -6,11 +13,14 @@ import { AppUser, UserRole } from '@/types';
 export const dynamic = 'force-dynamic';
 
 export default async function AdminPage() {
-  const initialOrders = store.getOrders();
-  const products = store.getProducts();
-  const categories = store.getAllCategories();
-  const paymentMethods = store.getAllPaymentMethods();
-  const siteSettings = store.getSiteSettings();
+  const [initialOrders, products, categories, paymentMethods, siteSettings] = await Promise.all([
+    getLiveOrders(),
+    getLiveProducts({ status: 'all' }),
+    getLiveAllCategories(),
+    getLivePaymentMethods(),
+    getLiveSiteSettings()
+  ]);
+
   let initialUsers = store.getUsers();
 
   const adminSupabase = getAdminSupabaseClient();

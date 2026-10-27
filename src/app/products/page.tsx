@@ -1,7 +1,9 @@
 import Link from 'next/link';
-import { store } from '@/lib/db/store';
+import { getLiveProducts, getLiveCategories } from '@/lib/db/live-data';
 import { ProductCard } from '@/components/product/ProductCard';
 import { ChevronRight } from 'lucide-react';
+
+export const dynamic = 'force-dynamic';
 
 interface ProductsPageProps {
   searchParams: Promise<{ search?: string; category?: string; sort?: string }>;
@@ -10,12 +12,13 @@ interface ProductsPageProps {
 export default async function ProductsPage({ searchParams }: ProductsPageProps) {
   const { search, category } = await searchParams;
 
-  const products = store.getProducts({
-    search,
-    categorySlug: category
-  });
-
-  const categories = store.getCategories();
+  const [products, categories] = await Promise.all([
+    getLiveProducts({
+      search,
+      categorySlug: category
+    }),
+    getLiveCategories()
+  ]);
 
   return (
     <div className="py-8 md:py-12 bg-[#FFFDF8]">

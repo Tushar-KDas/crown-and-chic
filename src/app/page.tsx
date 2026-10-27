@@ -1,13 +1,17 @@
-import { store } from '@/lib/db/store';
+import { getLiveBanners, getLiveCategories, getLiveProducts } from '@/lib/db/live-data';
 import { HeroCarousel } from '@/components/home/HeroCarousel';
 import { CategorySection } from '@/components/home/CategorySection';
 import { ProductGrid } from '@/components/home/ProductGrid';
 import { ValueProps } from '@/components/home/ValueProps';
 
-export default function HomePage() {
-  const banners = store.getBanners();
-  const categories = store.getCategories();
-  const products = store.getProducts();
+export const dynamic = 'force-dynamic';
+
+export default async function HomePage() {
+  const [banners, categories, products] = await Promise.all([
+    getLiveBanners(),
+    getLiveCategories(),
+    getLiveProducts()
+  ]);
 
   return (
     <div>

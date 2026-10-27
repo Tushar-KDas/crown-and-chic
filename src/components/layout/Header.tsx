@@ -1,6 +1,6 @@
 'use client';
 
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import Link from 'next/link';
 import Image from 'next/image';
 import { useRouter } from 'next/navigation';
@@ -27,6 +27,18 @@ export function Header() {
   const { user, logout, isStaff } = useAuth();
   const [searchQuery, setSearchQuery] = useState('');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const [categories, setCategories] = useState<{ id: string; name: string; slug: string }[]>([]);
+
+  useEffect(() => {
+    fetch('/api/categories')
+      .then(r => r.json())
+      .then(d => {
+        if (d.categories && Array.isArray(d.categories)) {
+          setCategories(d.categories);
+        }
+      })
+      .catch(() => {});
+  }, []);
 
   const handleSearch = (e: React.FormEvent) => {
     e.preventDefault();
@@ -254,48 +266,63 @@ export function Header() {
         {mobileMenuOpen && (
           <div className="md:hidden py-4 border-t border-[#FCE8EE] space-y-3">
             <div className="grid grid-cols-2 gap-2 text-xs font-medium">
-              <Link 
-                href="/category/womens-fashion" 
-                onClick={() => setMobileMenuOpen(false)}
-                className="p-2 rounded bg-white hover:text-[#BE3D69]"
-              >
-                👗 Women's Fashion
-              </Link>
-              <Link 
-                href="/category/mens-fashion" 
-                onClick={() => setMobileMenuOpen(false)}
-                className="p-2 rounded bg-white hover:text-[#BE3D69]"
-              >
-                👔 Men's Fashion
-              </Link>
-              <Link 
-                href="/category/kids-fashion" 
-                onClick={() => setMobileMenuOpen(false)}
-                className="p-2 rounded bg-white hover:text-[#BE3D69]"
-              >
-                🧸 Kids Fashion
-              </Link>
-              <Link 
-                href="/category/hijab-scarf" 
-                onClick={() => setMobileMenuOpen(false)}
-                className="p-2 rounded bg-white hover:text-[#BE3D69]"
-              >
-                🧕 Hijab & Scarf
-              </Link>
-              <Link 
-                href="/category/bags-accessories" 
-                onClick={() => setMobileMenuOpen(false)}
-                className="p-2 rounded bg-white hover:text-[#BE3D69]"
-              >
-                👜 Bags & Accessories
-              </Link>
-              <Link 
-                href="/category/footwear" 
-                onClick={() => setMobileMenuOpen(false)}
-                className="p-2 rounded bg-white hover:text-[#BE3D69]"
-              >
-                👠 Footwear
-              </Link>
+              {categories.length > 0 ? (
+                categories.map(cat => (
+                  <Link 
+                    key={cat.id}
+                    href={`/category/${cat.slug}`} 
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="p-2 rounded bg-white hover:text-[#BE3D69] truncate"
+                  >
+                    ✨ {cat.name}
+                  </Link>
+                ))
+              ) : (
+                <>
+                  <Link 
+                    href="/category/womens-fashion" 
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="p-2 rounded bg-white hover:text-[#BE3D69]"
+                  >
+                    👗 Women's Fashion
+                  </Link>
+                  <Link 
+                    href="/category/mens-fashion" 
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="p-2 rounded bg-white hover:text-[#BE3D69]"
+                  >
+                    👔 Men's Fashion
+                  </Link>
+                  <Link 
+                    href="/category/kids-fashion" 
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="p-2 rounded bg-white hover:text-[#BE3D69]"
+                  >
+                    🧸 Kids Fashion
+                  </Link>
+                  <Link 
+                    href="/category/hijab-scarf" 
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="p-2 rounded bg-white hover:text-[#BE3D69]"
+                  >
+                    🧕 Hijab & Scarf
+                  </Link>
+                  <Link 
+                    href="/category/bags-accessories" 
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="p-2 rounded bg-white hover:text-[#BE3D69]"
+                  >
+                    👜 Bags & Accessories
+                  </Link>
+                  <Link 
+                    href="/category/footwear" 
+                    onClick={() => setMobileMenuOpen(false)}
+                    className="p-2 rounded bg-white hover:text-[#BE3D69]"
+                  >
+                    👠 Footwear
+                  </Link>
+                </>
+              )}
             </div>
             <div className="pt-2 border-t border-[#FCE8EE] flex flex-col gap-2">
               {user ? (

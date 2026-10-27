@@ -1,8 +1,10 @@
 import { notFound } from 'next/navigation';
 import Link from 'next/link';
-import { store } from '@/lib/db/store';
+import { getLiveCategoryBySlug, getLiveProducts } from '@/lib/db/live-data';
 import { ProductCard } from '@/components/product/ProductCard';
 import { ChevronRight } from 'lucide-react';
+
+export const dynamic = 'force-dynamic';
 
 interface CategoryPageProps {
   params: Promise<{ slug: string }>;
@@ -10,13 +12,13 @@ interface CategoryPageProps {
 
 export default async function CategoryPage({ params }: CategoryPageProps) {
   const { slug } = await params;
-  const category = store.getCategoryBySlug(slug);
+  const category = await getLiveCategoryBySlug(slug);
 
   if (!category) {
     notFound();
   }
 
-  const products = store.getProducts({ categorySlug: slug });
+  const products = await getLiveProducts({ categorySlug: slug });
 
   return (
     <div className="py-8 md:py-12 bg-[#FFFDF8]">
